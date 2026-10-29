@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Cubo reactivo</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #111; }
+    #info {
+      position: fixed; top: 16px; left: 16px; color: #fff;
+      font: 20px/1.4 system-ui, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">Esperando datos…</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // --- Escena básica ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+    camera.position.z = 3;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const luz = new THREE.DirectionalLight(0xffffff, 0.8);
+    luz.position.set(3, 4, 5);
+    scene.add(luz);
+
+    const cubo = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 1.5, 1.5),
+      new THREE.MeshStandardMaterial({ color: 0x888888 })
+    );
+    scene.add(cubo);
+
+    // --- Recibir números del servidor Python ---
+    const info = document.getElementById("info");
+    const colorObjetivo = new THREE.Color(0x888888);
+
+    const fuente = new EventSource("/stream");
+    fuente.onmessage = (e) => {
+      const n = Number(e.data);               // 0 - 100
+      info.textContent = "Número: " + n;
+      // 0 -> azul (hue 0.66), 100 -> rojo (hue 0.0)
+      colorObjetivo.setHSL(0.66 * (1 - n / 100), 0.9, 0.5);
+    };
+    fuente.onerror = () => { info.textContent = "Sin conexión con el servidor…"; };
+
+    // --- Animación ---
+    function animar() {
+      requestAnimationFrame(animar);
+      cubo.rotation.x += 0.01;
+      cubo.rotation.y += 0.015;
+      cubo.material.color.lerp(colorObjetivo, 0.1);  // transición suave
+      renderer.render(scene, camera);
+    }
+    animar();
+
+    addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>
